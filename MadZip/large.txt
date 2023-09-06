@@ -1,0 +1,106 @@
+CS 240: Algorithms and Data Structures
+James Madison University, Spring 2023
+Huffman Coding
+Introduction
+The goal for this project is to develop a file compression utility to compete with applications like 7-Zip, gzip, WinZip etc.
+
+Specification
+You must develop a utility class named MadZip with two public static methods: zip and unzip.
+
+zip
+The zip method must accept two java.io.File arguments. The first is the location of the file that should be compressed, and the second is the location where the compressed version of the file will be saved.
+
+This method must perform the full Huffman coding process:
+
+It must determine the frequencies of all bytes in the source file.
+It must build a Huffman tree with the help of a Min-Heap. (You are welcome to use your own MinHeap class, or Java’s built-in PriorityQueue.)
+It must use the Huffman tree to build a mapping from bytes to byte-encodings.
+It must use that mapping to generate a compressed version of the original file. This file will include both the frequency data and a sequence of bits representing the encoded version of the original file. (See below for details of the file format)
+This method must throw an IOException if the the source file cannot be read or the destination file cannot be written to.
+The return type must be void.
+This method must overwrite the destination file if it already exists.
+This method must not modify the source file.
+
+unzip
+The unzip must accept two java.io.File arguments. The first is the location of a previously zipped file, and the second is the location where the un-compressed version of the file should be saved.
+
+This method must perform the full Huffman decoding process:
+
+It must reconstruct the Huffman tree from the frequencies stored in the compressed version of the file.
+It must use that Huffman tree to decode the encoded bit sequence in the compressed file, saving all of the recovered bytes to the destination file.
+This method must throw an IOException if the the source file cannot be read or the destination file cannot be written to. It must throw a ClassNotFoundException if that exception occurs during deserialization. (See below for more information on deserialization.)
+
+The return type must be void.
+
+This method must overwrite the destination file if it already exists.
+
+This method must not modify the source file.
+
+Notice that this specification leaves most of the design up to you. It will be your responsibility to decompose the problem into an appropriate set of classes and methods. Take some time to develop your design before you start coding! You may find it helpful to create stubbed-out versions of your classes as a first step.
+
+MadZipApp
+We are providing a Java GUI wrapper for your zip and unzip methods:
+
+MadZipApp.java
+As part of your testing, you should use the GUI to zip several files, unzip those files with a different name, and confirm that the unzipped versions are identical to the original files.
+
+There are many tools that will report whether two files are identical. For example, the diff command-line tool should be available by default under Linux and OS X.
+
+File Format
+You should already have experience reading and writing text files in Java. You may not have experience handling file I/O with binary data. For this application it will be necessary to both read and write binary data. We will need to read binary files because our compression tool should be able to compress any file, whether or not it contains plain-text. We will need to create binary files because the Huffman coding process results in a binary encoding. Saving a series of 0’s and 1’s as ASCII characters would not reduce the overall file size since we would end up using eight bits to store each individual bit of encoded data.
+
+We are providing two Java files to help with efficiently manipulating and storing binary data.
+
+BitSequence.java - This class represents an arbitrarily long sequence of bits. You will use this class to represent the Huffman-encoded version of the input file. (You should not try to use it to store the data that is read in from the uncompressed file.)
+
+HuffmanSave.java - This is a simple container class that stores a BitSequence along with a HashMap of frequency data. Recall that decoding the bit sequence created during the Huffman coding process requires us to have access to the Huffman tree that was used to create the code. A HuffmanSave object stores all of the information necessary to reconstruct a compressed file. The frequency data can be used to rebuild the Huffman tree and the BitSequence stores the encoded data.
+
+For this application the compressed files must be serialized versions of HuffmanSave objects. Object serialization is the process of converting a complete Java object into a binary form so that it can be saved to a file or communicated over a network. This tutorial provides some background on serialization and shows examples of saving and loading Java objects.
+
+We will follow the convention that compressed files should have a .mz file extension, but this is not a requirement that should be enforced by your zip method.
+
+The files BitSequence.java and HuffmanSave.java must not be modified.
+
+Reading Binary Data
+You probably have the most experience reading files using the Scanner class. Recall that every file is really just a long sequence of bytes. The Scanner class is useful because it allows us to interpret those bytes as ints, doubles, Strings etc. For this project, we don’t care what the bytes actually represent. This means there is no reason to use the Scanner class. Instead you should use the read method of FileInputStream to process the bytes in the file directly. Wrapping your FileInputStream in a BufferedInputStream will significantly improve file I/O performance for large files.
+
+Be careful! The documentation for the read method states that it “reads a byte of data from the input stream”, but the return type is actually an int. The read method returns a value of -1 (which is not a valid byte) if there are no more bytes available in the stream. You can cast the return value to a byte, but you need to check for the -1 before you do so.
+
+Space Efficiency
+Keep in mind that we might be interested in compressing very large files, and that files on disk may be larger the the total memory available on our computer. This means that we should avoid reading the entire contents of a file into memory. In other words, don’t use the read(byte[] b) method of the FileInputStream, and don’t save all of the bytes into an ArrayList as they are read. Instead, process each byte as it is read from the file. This means that you will end up reading the file twice during the compression process: once to determine the byte frequencies, and again to create the encoded bit sequence.
+
+Under the current design, we will need to store the entire contents of the compressed version of the file in memory, since we need to completely build the HuffmanSave object before it can be saved.
+
+Handling Ties
+One issue that needs to be addressed when developing a Huffman tree is how to handle ties: which trees should be selected when more than two options are tied for the lowest frequency? In one sense, it doesn’t matter. In the case of a tie any valid choice will result in the same encoding length.
+
+On the other hand different choices in tie-breaking will result in different trees and thus different encodings. This is an issue for decoding because the resulting bits can only be decoded by a tree that exactly matches the tree that was used for the encoding process.
+
+Address this by providing a deterministic mechanism for breaking ties. In the case of tied frequencies, your compareTo method should base its comparison on the lowest byte value from each tree.
+
+Failing to address this issue can lead to symptoms that are difficult to diagnose. The encoding and decoding processes may seem to work well in most cases because the tree happens to be built the same way for decoding as it was for decoding.
+
+Debugging and Testing
+For the purposes of debugging and testing your implementation you will want to create some sample files that are small enough to evaluate by hand. For example:
+
+aaaabbc
+
+Under Linux and OS X, the xxd terminal program can be used to examine the byte values stored in a file. For example, the following commands create a file named tmp.txt then display the contents as both hexadecimal and binary:
+
+$ echo aaaabbc > tmp.txt
+
+$ xxd tmp.txt                   # This shows the contents as hex
+00000000: 6161 6161 6262 630a                      aaaabbc.
+
+$ xxd -b tmp.txt                # This shows the contents as binary
+00000000: 01100001 01100001 01100001 01100001 01100010 01100010  aaaabb
+00000006: 01100011 00001010                                      c.
+Note that most standard text editors add a newline character (‘\n’) at the end of the file. If you’re using Windows, you might also get a carriage return (‘\r’). These characters will show up in your frequency counts as the bytes 0x0a and 0x0d, respectively. (Note that 0x means we are talking about hexadecimal numbers. In decimal, these bytes would be 10 and 13.)
+
+Honor Code Reminder
+There are undoubtedly many Java Huffman tree implementations floating around on the internet. Obviously, submitting any of that code as your own would violate the JMU honor code. As always, if you obtain any information from outside sources you must provide a link to your source in the acknowledgment statement in your submission. (Copying external code with a citation wouldn’t violate the honor code, but it also wouldn’t result in any credit for the project.)
+
+Grading
+Gradescope Functionality Tests	80%
+Style Checks	5%
+Instructor Style Points	15%
